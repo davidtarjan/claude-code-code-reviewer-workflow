@@ -25,28 +25,24 @@ def load_prompt_template():
         return f.read()
 
 
-def merge_prompt(template, user_request):
-    """Merge user request with the template prompt."""
-    placeholder = "[This section will be appended with specific task details and file paths]"
-    
-    if placeholder not in template:
-        raise ValueError("Template prompt does not contain the expected placeholder")
-    
-    return template.replace(placeholder, user_request)
+def load_system_prompt():
+    """Load the system prompt for code review."""
+    template = load_prompt_template()
+    return template
 
 
 # Claude Code path override (leave empty for default behavior)
 CLAUDE_PATH_OVERRIDE = ""
 
 
-def call_claude_code(merged_prompt):
-    """Call Claude Code with the merged prompt."""
+def call_claude_code(system_prompt, user_prompt):
+    """Call Claude Code with system prompt and user prompt."""
     try:
         if CLAUDE_PATH_OVERRIDE:
             # Use specific path if override is set
             result = subprocess.run(
-                [CLAUDE_PATH_OVERRIDE, "-p"],
-                input=merged_prompt,
+                [CLAUDE_PATH_OVERRIDE, "--append-system-prompt", system_prompt, "-p"],
+                input=user_prompt,
                 capture_output=True,
                 text=True,
                 check=True
@@ -54,8 +50,8 @@ def call_claude_code(merged_prompt):
         else:
             # Use default claude command
             result = subprocess.run(
-                ["claude", "-p"],
-                input=merged_prompt,
+                ["claude", "--append-system-prompt", system_prompt, "-p"],
+                input=user_prompt,
                 capture_output=True,
                 text=True,
                 check=True
@@ -99,20 +95,23 @@ Examples:
     args = parser.parse_args()
     
     try:
-        # Load the prompt template
-        template = load_prompt_template()
+        # Load the system prompt
+        system_prompt = load_system_prompt()
         
-        # Merge with user request
-        merged_prompt = merge_prompt(template, args.review_request)
+        # User prompt is just the review request
+        user_prompt = args.review_request
         
         if args.dry_run:
-            print("Merged prompt:")
+            print("System prompt:")
             print("=" * 50)
-            print(merged_prompt)
+            print(system_prompt)
+            print("\nUser prompt:")
+            print("=" * 20)
+            print(user_prompt)
             return
         
-        # Call Claude Code
-        output = call_claude_code(merged_prompt)
+        # Call Claude Code with system and user prompts
+        output = call_claude_code(system_prompt, user_prompt)
         print(output)
         
     except Exception as e:

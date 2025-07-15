@@ -33,6 +33,3 @@ Provide specific, actionable feedback. If you find issues:
 - Reference exact file names and line numbers when possible
 
 If the code looks good, acknowledge what was done well but still mention any minor improvements that could be made.
-
-TASK CONTEXT AND FILES TO REVIEW:
-[This section will be appended with specific task details and file paths]
