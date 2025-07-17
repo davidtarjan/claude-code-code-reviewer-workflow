@@ -25,37 +25,43 @@ def load_prompt_template():
         return f.read()
 
 
-def load_system_prompt():
-    """Load the system prompt for code review."""
-    template = load_prompt_template()
-    return template
+def get_system_prompt_file():
+    """Get the path to the system prompt file for file reference."""
+    script_dir = Path(__file__).parent.parent
+    prompt_file = script_dir / "prompts" / "code_reviewer_prompt.txt"
+    
+    if not prompt_file.exists():
+        raise FileNotFoundError(f"Prompt template not found at {prompt_file}")
+    
+    return str(prompt_file)
 
 
 # Claude Code path override (leave empty for default behavior)
 CLAUDE_PATH_OVERRIDE = ""
 
 
-def call_claude_code(system_prompt, user_prompt):
-    """Call Claude Code with system prompt and user prompt."""
+def call_claude_code(system_prompt_file, user_prompt):
+    """Call Claude Code with system prompt file reference and user prompt."""
     try:
+        # Use command substitution syntax for system prompt
+        system_prompt_ref = f"$(<{system_prompt_file})"
+        
         if CLAUDE_PATH_OVERRIDE:
-            # Use specific path if override is set
-            result = subprocess.run(
-                [CLAUDE_PATH_OVERRIDE, "--append-system-prompt", system_prompt, "-p"],
-                input=user_prompt,
-                capture_output=True,
-                text=True,
-                check=True
-            )
+            # Use specific path if override is set - need shell=True for command substitution
+            cmd = f'{CLAUDE_PATH_OVERRIDE} --append-system-prompt "{system_prompt_ref}" -p'
         else:
             # Use default claude command
-            result = subprocess.run(
-                ["claude", "--append-system-prompt", system_prompt, "-p"],
-                input=user_prompt,
-                capture_output=True,
-                text=True,
-                check=True
-            )
+            cmd = f'claude --append-system-prompt "{system_prompt_ref}" -p'
+        
+        
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            input=user_prompt,
+            capture_output=True,
+            text=True,
+            check=True
+        )
         return result.stdout
             
     except subprocess.CalledProcessError as e:
@@ -95,23 +101,26 @@ Examples:
     args = parser.parse_args()
     
     try:
-        # Load the system prompt
-        system_prompt = load_system_prompt()
+        # Get the system prompt file path
+        system_prompt_file = get_system_prompt_file()
         
         # User prompt is just the review request
         user_prompt = args.review_request
         
         if args.dry_run:
-            print("System prompt:")
+            print("System prompt file:")
             print("=" * 50)
-            print(system_prompt)
+            print(f"<@{system_prompt_file}")
+            print("\nSystem prompt content:")
+            print("=" * 25)
+            print(load_prompt_template())
             print("\nUser prompt:")
             print("=" * 20)
             print(user_prompt)
             return
         
-        # Call Claude Code with system and user prompts
-        output = call_claude_code(system_prompt, user_prompt)
+        # Call Claude Code with system prompt file and user prompt
+        output = call_claude_code(system_prompt_file, user_prompt)
         print(output)
         
     except Exception as e:
